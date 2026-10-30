@@ -1,0 +1,1458 @@
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>
+        Resource Allocation Simulator — Banker’s Algorithm and DBDAA
+    </title>
+
+    <style>
+        :root {
+            --bg: #080d1c;
+            --panel: #111a2e;
+            --line: #263753;
+            --text: #eaf1ff;
+            --muted: #a7b7d2;
+            --cyan: #4de3f5;
+            --green: #55e6a5;
+            --red: #ff6b7a;
+            --yellow: #ffd166;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            background: radial-gradient(
+                circle at top right,
+                #172b4c,
+                #080d1c 55%
+            );
+            color: var(--text);
+            font: 15px/1.5 "Segoe UI", Arial, sans-serif;
+        }
+
+        main {
+            max-width: 1200px;
+            margin: auto;
+            padding: 24px 16px 55px;
+        }
+
+        .hero,
+        .panel {
+            background: #111a2ee8;
+            border: 1px solid var(--line);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 16px;
+            box-shadow: 0 12px 30px #0003;
+        }
+
+        .hero {
+            border-top: 3px solid var(--cyan);
+        }
+
+        h1 {
+            margin: 0;
+            color: var(--cyan);
+            font-size: clamp(24px, 4vw, 36px);
+        }
+
+        h2 {
+            font-size: 20px;
+            margin: 0 0 12px;
+        }
+
+        h3 {
+            font-size: 16px;
+            color: var(--cyan);
+            margin: 18px 0 8px;
+        }
+
+        p,
+        .muted {
+            color: var(--muted);
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(
+                auto-fit,
+                minmax(190px, 1fr)
+            );
+            gap: 12px;
+        }
+
+        .field label {
+            display: block;
+            color: var(--muted);
+            font-size: 13px;
+            margin-bottom: 5px;
+        }
+
+        input,
+        textarea,
+        select {
+            width: 100%;
+            background: #0a1223;
+            color: var(--text);
+            border: 1px solid #354b6c;
+            border-radius: 8px;
+            padding: 10px;
+            font: inherit;
+        }
+
+        button {
+            border: 0;
+            border-radius: 9px;
+            padding: 10px 14px;
+            font-weight: 700;
+            cursor: pointer;
+            background: var(--cyan);
+            color: #07111d;
+            margin: 5px 5px 5px 0;
+        }
+
+        button.secondary {
+            background: #293b59;
+            color: var(--text);
+        }
+
+        button.warn {
+            background: var(--yellow);
+            color: #201600;
+        }
+
+        .scroll {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 8px 0 15px;
+            font-size: 13px;
+        }
+
+        th,
+        td {
+            padding: 8px;
+            border: 1px solid #2b3e5b;
+            text-align: center;
+        }
+
+        th {
+            background: #1a2a45;
+            color: var(--cyan);
+        }
+
+        td {
+            background: #0e1528;
+        }
+
+        .status {
+            padding: 12px;
+            border-radius: 9px;
+            margin: 10px 0;
+            font-weight: 700;
+        }
+
+        .safe {
+            background: #123b31;
+            color: var(--green);
+        }
+
+        .unsafe {
+            background: #401f2a;
+            color: var(--red);
+        }
+
+        .info {
+            background: #332d18;
+            color: var(--yellow);
+            padding: 12px;
+            border-radius: 8px;
+        }
+
+        .trace {
+            border-left: 3px solid var(--cyan);
+            padding: 9px 12px;
+            margin: 8px 0;
+            background: #0a1427;
+            border-radius: 0 8px 8px 0;
+        }
+
+        .small {
+            font-size: 12px;
+            color: var(--muted);
+        }
+
+        .error {
+            color: var(--red);
+            font-weight: 700;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .tabs button.active {
+            outline: 2px solid var(--green);
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .pill {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 20px;
+            background: #293b59;
+            margin: 2px;
+        }
+
+        .matrix textarea {
+            min-height: 105px;
+        }
+
+        code {
+            color: var(--cyan);
+        }
+    </style>
+</head>
+
+<body>
+
+    <main>
+
+        <!-- Header Section -->
+        <header class="hero">
+
+            <p class="small">
+                OPERATING SYSTEM · RESEARCH PAPER MINOR IMPLEMENTATION
+            </p>
+
+            <h1>Resource Allocation Simulator</h1>
+
+            <p>
+                Traditional Banker’s Safety Algorithm and a DBDAA
+                implementation following the published paper’s
+                numbered logic.
+            </p>
+
+        </header>
+
+
+        <!-- Section 1: Configure System -->
+        <section class="panel">
+
+            <h2>1. Configure system</h2>
+
+            <div class="grid">
+
+                <div class="field">
+                    <label for="np">
+                        Number of processes (1–10)
+                    </label>
+
+                    <input
+                        id="np"
+                        type="number"
+                        min="1"
+                        max="10"
+                        value="5"
+                    >
+                </div>
+
+                <div class="field">
+                    <label for="nr">
+                        Resource types (1–5)
+                    </label>
+
+                    <input
+                        id="nr"
+                        type="number"
+                        min="1"
+                        max="5"
+                        value="3"
+                    >
+                </div>
+
+                <div class="field">
+                    <label for="cycle">
+                        Timer cycle length m (process checks)
+                    </label>
+
+                    <input
+                        id="cycle"
+                        type="number"
+                        min="1"
+                        max="100"
+                        value="3"
+                    >
+                </div>
+
+            </div>
+
+            <button onclick="buildInputs()">
+                Build Inputs
+            </button>
+
+            <button
+                class="secondary"
+                onclick="loadExample()"
+            >
+                Load Example
+            </button>
+
+            <div id="inputs" class="matrix"></div>
+
+        </section>
+
+
+        <!-- Section 2: Choose Algorithm -->
+        <section class="panel">
+
+            <h2>2. Choose algorithm</h2>
+
+            <div class="tabs">
+
+                <button
+                    id="bankTab"
+                    class="active"
+                    onclick="choose('bank')"
+                >
+                    Banker’s Algorithm
+                </button>
+
+                <button
+                    id="dbTab"
+                    class="secondary"
+                    onclick="choose('db')"
+                >
+                    DBDAA (paper steps)
+                </button>
+
+            </div>
+
+            <p id="modeDesc">
+                Traditional Banker’s safety check.
+            </p>
+
+            <button onclick="runSelected()">
+                Run Selected Algorithm
+            </button>
+
+            <button
+                class="secondary"
+                onclick="clearOutput()"
+            >
+                Reset Results
+            </button>
+
+            <div id="output">
+                <p>
+                    Build or load inputs, then run an algorithm.
+                </p>
+            </div>
+
+        </section>
+
+
+        <!-- Section 3: Add Process Dynamically -->
+        <section class="panel">
+
+            <h2>3. Add a process dynamically</h2>
+
+            <p>
+                A process can be appended to the current input set,
+                then DBDAA can be run again. This models dynamic
+                admission; it does not interrupt JavaScript
+                execution mid-operation.
+            </p>
+
+            <div class="grid">
+
+                <div class="field">
+                    <label for="at">
+                        Arrival time (AT)
+                    </label>
+
+                    <input
+                        id="at"
+                        type="number"
+                        min="0"
+                        value="0"
+                    >
+                </div>
+
+                <div class="field">
+                    <label for="bt">
+                        Burst time (BT)
+                    </label>
+
+                    <input
+                        id="bt"
+                        type="number"
+                        min="1"
+                        value="3"
+                    >
+                </div>
+
+                <div class="field">
+                    <label for="newAlloc">
+                        Allocation vector
+                    </label>
+
+                    <input
+                        id="newAlloc"
+                        value="0 0 0"
+                    >
+                </div>
+
+                <div class="field">
+                    <label for="newMax">
+                        Maximum vector
+                    </label>
+
+                    <input
+                        id="newMax"
+                        value="1 1 1"
+                    >
+                </div>
+
+            </div>
+
+            <button onclick="addProcess()">
+                Add Process
+            </button>
+
+            <div id="addMsg"></div>
+
+        </section>
+
+
+        <!-- Section 4: DBDAA Explanation -->
+        <section class="panel">
+
+            <h2>4. How DBDAA is represented</h2>
+
+            <p>
+                The implementation follows the paper’s described
+                checks: compare each process’s maximum demand against
+                total resources, calculate Need and Max_Need, sort
+                the Ready Queue in ascending Max_Need, check resource
+                positions using the marked/unmarked procedure, and
+                track Safe, Primary Unsafe, and Unsafe sequences.
+            </p>
+
+            <p class="info">
+                Implementation note: the paper describes a wall-clock
+                timer and a wait state. A browser-only demo cannot
+                reproduce a real operating-system scheduler, so the
+                timer is represented as a configurable number of
+                process checks per cycle. To prevent an endless loop
+                when no resource state changes, the simulator limits
+                retries and reports unresolved processes as Primary
+                Unsafe at the end. Treat this as a documented
+                educational translation of the paper, not a
+                bit-for-bit reproduction of its runtime environment.
+            </p>
+
+        </section>
+
+    </main>
+
+
+    <!-- JavaScript Section -->
+    <script>
+
+        const $ = id => document.getElementById(id);
+
+        let mode = 'bank',
+            lastState = null;
+
+
+        // Convert input string into an array of numbers
+        function nums(s) {
+            return s.trim()
+                ? s.trim().split(/[\s,]+/).map(Number)
+                : [];
+        }
+
+
+        // Select the algorithm
+        function choose(m) {
+            mode = m;
+
+            $('bankTab').classList.toggle(
+                'active',
+                m === 'bank'
+            );
+
+            $('dbTab').classList.toggle(
+                'active',
+                m === 'db'
+            );
+
+            $('bankTab').classList.toggle(
+                'secondary',
+                m !== 'bank'
+            );
+
+            $('dbTab').classList.toggle(
+                'secondary',
+                m !== 'db'
+            );
+
+            $('modeDesc').textContent =
+                m === 'bank'
+                    ? 'Traditional Banker’s safety check: repeatedly find a process whose Need is ≤ Work.'
+                    : 'DBDAA: Max_Need sorting, marked-resource checks, and three process sequences.';
+
+            $('output').innerHTML =
+                '<p>Run the selected algorithm to see results.</p>';
+        }
+
+
+        // Build input fields
+        function buildInputs() {
+            let n = +$('np').value;
+            let d = +$('nr').value;
+
+            if (
+                !Number.isInteger(n) ||
+                n < 1 ||
+                n > 10 ||
+                !Number.isInteger(d) ||
+                d < 1 ||
+                d > 5
+            ) {
+                $('inputs').innerHTML =
+                    '<p class="error">Use 1–10 processes and 1–5 resource types.</p>';
+
+                return;
+            }
+
+            let a = Array.from(
+                { length: n },
+                () => Array(d).fill(0)
+            );
+
+            let mx = Array.from(
+                { length: n },
+                () => Array(d).fill(0)
+            );
+
+            let tot = Array(d).fill(0);
+
+
+            // Load default example
+            if (n === 5 && d === 3) {
+
+                a = [
+                    [0, 1, 0],
+                    [2, 0, 0],
+                    [3, 0, 2],
+                    [2, 1, 1],
+                    [0, 0, 2]
+                ];
+
+                mx = [
+                    [7, 5, 3],
+                    [3, 2, 2],
+                    [9, 0, 2],
+                    [2, 2, 2],
+                    [4, 3, 3]
+                ];
+
+                tot = [10, 5, 7];
+            }
+
+
+            $('inputs').innerHTML = `
+                <h3>Total resource instances</h3>
+
+                <input
+                    id="total"
+                    value="${tot.join(' ')}"
+                >
+
+                <h3>Process details</h3>
+
+                <p class="small">
+                    One row per process. Allocation and Maximum
+                    must each have ${d} non-negative integers per row.
+                </p>
+
+                <label>Allocation matrix</label>
+
+                <textarea id="alloc">
+${a.map(r => r.join(' ')).join('\n')}
+                </textarea>
+
+                <label>Maximum matrix</label>
+
+                <textarea id="max">
+${mx.map(r => r.join(' ')).join('\n')}
+                </textarea>
+
+                <label>
+                    Arrival times (one integer per process)
+                </label>
+
+                <input
+                    id="ats"
+                    value="${Array(n).fill(0).join(' ')}"
+                >
+
+                <label>
+                    Burst times (one positive integer per process)
+                </label>
+
+                <input
+                    id="bts"
+                    value="${Array(n).fill(3).join(' ')}"
+                >
+            `;
+
+            $('newAlloc').value =
+                Array(d).fill(0).join(' ');
+
+            $('newMax').value =
+                Array(d).fill(1).join(' ');
+
+            clearOutput();
+        }
+
+
+        // Load predefined example
+        function loadExample() {
+            $('np').value = 5;
+            $('nr').value = 3;
+
+            buildInputs();
+
+            $('total').value = '10 5 7';
+
+            $('alloc').value =
+                '0 1 0\n2 0 0\n3 0 2\n2 1 1\n0 0 2';
+
+            $('max').value =
+                '7 5 3\n3 2 2\n9 0 2\n2 2 2\n4 3 3';
+
+            $('ats').value = '0 0 0 0 0';
+            $('bts').value = '3 4 2 5 3';
+
+            choose('bank');
+        }
+
+
+        // Validate and read matrix rows
+        function rows(id, n, d) {
+            let r = $(id).value.trim()
+                .split(/\n/)
+                .filter(Boolean)
+                .map(nums);
+
+            if (
+                r.length !== n ||
+                r.some(x =>
+                    x.length !== d ||
+                    x.some(v =>
+                        !Number.isInteger(v) || v < 0
+                    )
+                )
+            ) {
+                throw Error(
+                    id + ' must have ' + n +
+                    ' rows of ' + d +
+                    ' non-negative integers.'
+                );
+            }
+
+            return r;
+        }
+
+
+        // Read and validate system state
+        function getState() {
+            let n = +$('np').value;
+            let d = +$('nr').value;
+
+            if (
+                !Number.isInteger(n) ||
+                n < 1 ||
+                n > 10 ||
+                !Number.isInteger(d) ||
+                d < 1 ||
+                d > 5
+            ) {
+                throw Error('Invalid process/resource count.');
+            }
+
+            let T = nums($('total').value);
+            let A = rows('alloc', n, d);
+            let M = rows('max', n, d);
+            let AT = nums($('ats').value);
+            let BT = nums($('bts').value);
+
+
+            // Validate total resources
+            if (
+                T.length !== d ||
+                T.some(v =>
+                    !Number.isInteger(v) || v < 0
+                )
+            ) {
+                throw Error(
+                    'Total resources must contain ' +
+                    d + ' non-negative integers.'
+                );
+            }
+
+
+            // Validate arrival times
+            if (
+                AT.length !== n ||
+                AT.some(v =>
+                    !Number.isInteger(v) || v < 0
+                )
+            ) {
+                throw Error(
+                    'Arrival times must contain one non-negative integer per process.'
+                );
+            }
+
+
+            // Validate burst times
+            if (
+                BT.length !== n ||
+                BT.some(v =>
+                    !Number.isInteger(v) || v < 1
+                )
+            ) {
+                throw Error(
+                    'Burst times must contain one positive integer per process.'
+                );
+            }
+
+
+            // Check Allocation and Maximum values
+            for (let i = 0; i < n; i++) {
+                for (let j = 0; j < d; j++) {
+
+                    if (A[i][j] > M[i][j]) {
+                        throw Error(
+                            'Allocation cannot exceed Maximum at P' +
+                            (i + 1) + ', R' + (j + 1) + '.'
+                        );
+                    }
+
+                    if (M[i][j] > T[j]) {
+                        // Original source contains no additional action here.
+                    }
+                }
+            }
+
+
+            // Calculate total allocated resources
+            let sum = Array(d).fill(0);
+
+            A.forEach(r =>
+                r.forEach((v, j) => sum[j] += v)
+            );
+
+
+            if (sum.some((v, j) => v > T[j])) {
+                throw Error(
+                    'Total allocated resources exceed total instances.'
+                );
+            }
+
+
+            // Calculate Available resources
+            let V = T.map((v, j) => v - sum[j]);
+
+
+            // Calculate Need matrix
+            let Need = M.map((r, i) =>
+                r.map((v, j) => v - A[i][j])
+            );
+
+
+            return {
+                n, d, T, A, M, AT, BT, V, Need
+            };
+        }
+
+
+        // Display matrix in table format
+        function tbl(mat, d) {
+            return `
+                <div class="scroll">
+                    <table>
+                        <tr>
+                            <th>Process</th>
+
+                            ${Array.from(
+                                { length: d },
+                                (_, j) =>
+                                    '<th>R' + (j + 1) + '</th>'
+                            ).join('')}
+                        </tr>
+
+                        ${mat.map((r, i) => `
+                            <tr>
+                                <th>P${i + 1}</th>
+
+                                ${r.map(v =>
+                                    `<td>${v}</td>`
+                                ).join('')}
+                            </tr>
+                        `).join('')}
+                    </table>
+                </div>
+            `;
+        }
+
+
+        // Traditional Banker's Safety Algorithm
+        function bank(state) {
+            let work = [...state.V];
+
+            let done = Array(state.n).fill(false);
+            let seq = [];
+            let logs = [];
+            let comparisons = 0;
+
+            while (seq.length < state.n) {
+
+                let found = -1;
+
+                for (let i = 0; i < state.n; i++) {
+
+                    if (done[i]) {
+                        continue;
+                    }
+
+                    comparisons += state.d;
+
+                    if (
+                        state.Need[i].every(
+                            (v, j) => v <= work[j]
+                        )
+                    ) {
+                        found = i;
+                        break;
+                    }
+                }
+
+                if (found < 0) {
+                    break;
+                }
+
+                let before = [...work];
+
+                work = work.map(
+                    (v, j) => v + state.A[found][j]
+                );
+
+                done[found] = true;
+                seq.push(found);
+
+                logs.push(
+                    `P${found + 1} can finish: Need [${state.Need[found]}] ≤ Work [${before}]; release Allocation [${state.A[found]}].`
+                );
+            }
+
+            return {
+                safe: seq.length === state.n,
+                seq,
+                logs,
+                comparisons,
+                work
+            };
+        }
+
+
+        // DBDAA Algorithm
+        function dbdaa(s) {
+            let d = s.d;
+            let n = s.n;
+
+            let available = [...s.T];
+
+            let safe = [];
+            let primary = [];
+            let unsafe = [];
+
+            let logs = [];
+
+            let comparisons = 0;
+
+            let marked = Array(d).fill(false);
+            let complete = Array(n).fill(false);
+
+            let need = s.Need.map(r => [...r]);
+
+            let candidates = [];
+
+
+            // Check maximum demand against total resources
+            for (let i = 0; i < n; i++) {
+
+                if (
+                    s.M[i].some(
+                        (v, j) => v > s.T[j]
+                    )
+                ) {
+                    unsafe.push(i);
+
+                    logs.push(
+                        `P${i + 1}: Maximum exceeds total instances of at least one resource; placed in Unsafe Sequence (paper Step 4).`
+                    );
+
+                } else {
+                    candidates.push(i);
+                }
+            }
+
+
+            // Subtract initial allocation
+            for (const i of candidates) {
+                available = available.map(
+                    (v, j) => v - s.A[i][j]
+                );
+            }
+
+            if (available.some(v => v < 0)) {
+                throw Error('Invalid allocation totals.');
+            }
+
+
+            // Calculate Max_Need
+            const maxNeed = i =>
+                Math.max(...need[i]);
+
+
+            // Sort the Ready Queue
+            const sortQ = q =>
+                q.sort(
+                    (a, b) =>
+                        maxNeed(a) - maxNeed(b) || a - b
+                );
+
+            let queue = sortQ([...candidates]);
+
+            let cycle = 1;
+            let checksInCycle = 0;
+
+            let m = +$('cycle').value;
+
+            if (!Number.isInteger(m) || m < 1) {
+                throw Error(
+                    'Timer cycle m must be a positive integer.'
+                );
+            }
+
+            let maxCycles = Math.max(3, n * 2);
+            let cycleSummaries = [];
+
+
+            // Process the Ready Queue
+            while (queue.length && cycle <= maxCycles) {
+
+                let i = queue.shift();
+
+                if (complete[i]) {
+                    continue;
+                }
+
+                let result = 'safe';
+                let reason = '';
+
+                let localMarked = [...marked];
+
+                let k = 1;
+                let guard = 0;
+
+
+                // Marked and unmarked resource checking
+                while (
+                    k <= Math.floor(d / 2) &&
+                    guard < d + 2
+                ) {
+                    guard++;
+
+                    let unmarked = Array.from(
+                        { length: d },
+                        (_, j) => j
+                    ).filter(j => !localMarked[j]);
+
+                    if (!unmarked.length) {
+                        break;
+                    }
+
+                    let L1 = unmarked.reduce(
+                        (best, j) =>
+                            need[i][j] > need[i][best]
+                                ? j
+                                : best,
+                        unmarked[0]
+                    );
+
+                    let L2 = unmarked.reduce(
+                        (best, j) =>
+                            available[j] < available[best]
+                                ? j
+                                : best,
+                        unmarked[0]
+                    );
+
+                    let maxN = need[i][L1];
+                    let minA = available[L2];
+
+                    comparisons += unmarked.length * 2;
+
+                    logs.push(
+                        `Cycle ${cycle}: P${i + 1}, k=${k}; Max_Need=${maxN} at R${L1 + 1}, Min_A=${minA} at R${L2 + 1}.`
+                    );
+
+
+                    if (maxN <= minA) {
+                        reason = 'Max_Need ≤ Min_A';
+                        break;
+                    }
+
+
+                    if (
+                        need[i][L1] > available[L1] ||
+                        need[i][L2] > available[L2]
+                    ) {
+                        result = 'primary';
+
+                        reason =
+                            `Need exceeds Available at R${L1 + 1} or R${L2 + 1}`;
+
+                        break;
+                    }
+
+
+                    localMarked[L1] = true;
+                    localMarked[L2] = true;
+
+                    k++;
+                }
+
+
+                // Check remaining unmarked resource
+                if (
+                    result === 'safe' &&
+                    k > Math.floor(d / 2)
+                ) {
+                    let unmarked = Array.from(
+                        { length: d },
+                        (_, j) => j
+                    ).filter(j => !localMarked[j]);
+
+                    if (unmarked.length) {
+
+                        let L3 = unmarked[0];
+
+                        comparisons++;
+
+                        if (need[i][L3] > available[L3]) {
+
+                            result = 'primary';
+
+                            reason =
+                                `Need at remaining unmarked R${L3 + 1} exceeds Available`;
+
+                        } else {
+                            reason =
+                                `remaining unmarked resource R${L3 + 1} passes check`;
+                        }
+
+                    } else {
+                        reason = 'all resource types marked';
+                    }
+                }
+
+
+                // Store process result
+                if (result === 'primary') {
+
+                    primary.push(i);
+
+                    logs.push(
+                        `P${i + 1} → Primary Unsafe Sequence: ${reason}.`
+                    );
+
+                } else {
+
+                    complete[i] = true;
+                    safe.push(i);
+
+                    available = available.map(
+                        (v, j) => v + s.A[i][j]
+                    );
+
+                    marked.fill(false);
+
+                    logs.push(
+                        `P${i + 1} → Safe Sequence: ${reason}; release Allocation [${s.A[i]}] and clear marks.`
+                    );
+                }
+
+
+                checksInCycle++;
+
+
+                // Timer cycle boundary
+                if (
+                    checksInCycle >= m ||
+                    queue.length === 0
+                ) {
+
+                    cycleSummaries.push(
+                        `Cycle ${cycle}: Safe=[${safe.map(x => 'P' + (x + 1)).join(', ')}], Primary Unsafe=[${primary.map(x => 'P' + (x + 1)).join(', ')}], Unsafe=[${unsafe.map(x => 'P' + (x + 1)).join(', ')}].`
+                    );
+
+                    if (!primary.length) {
+                        break;
+                    }
+
+                    queue = sortQ(
+                        [...primary.filter(i => !complete[i])]
+                    );
+
+                    primary = [];
+                    cycle++;
+
+                    checksInCycle = 0;
+
+                    logs.push(
+                        'Timer cycle boundary: return sequence snapshot; reinsert Primary Unsafe processes into sorted queue.'
+                    );
+                }
+            }
+
+
+            // Keep unresolved processes in Primary Unsafe
+            if (queue.length || primary.length) {
+
+                for (const i of [...queue, ...primary]) {
+
+                    if (
+                        !complete[i] &&
+                        !unsafe.includes(i) &&
+                        !primary.includes(i)
+                    ) {
+                        primary.push(i);
+                    }
+                }
+            }
+
+
+            return {
+                safe,
+                primary,
+                unsafe,
+                logs,
+                comparisons,
+                cycles: cycleSummaries,
+                available,
+                allSafe: safe.length === n
+            };
+        }
+
+
+        // Run selected algorithm and display results
+        function runSelected() {
+
+            try {
+
+                let s = getState();
+
+                lastState = s;
+
+                let out =
+                    mode === 'bank'
+                        ? bank(s)
+                        : dbdaa(s);
+
+
+                let html = `
+                    <div class="metrics">
+                        <p>
+                            <b>Processes:</b> ${s.n}
+                            &nbsp;
+                            <b>Resources:</b> ${s.d}
+                            &nbsp;
+                            <b>Comparisons:</b> ${out.comparisons}
+                        </p>
+                    </div>
+
+                    <h3>Need Matrix</h3>
+
+                    ${tbl(s.Need, s.d)}
+                `;
+
+
+                // Display Banker's Algorithm result
+                if (mode === 'bank') {
+
+                    html += `
+                        <div class="status ${out.safe ? 'safe' : 'unsafe'}">
+                            ${out.safe ? 'SAFE STATE' : 'UNSAFE STATE'}
+                        </div>
+
+                        <p>
+                            <b>Safe sequence:</b>
+
+                            ${
+                                out.safe
+                                    ? out.seq.map(
+                                        i => 'P' + (i + 1)
+                                    ).join(' → ')
+                                    : 'No complete safe sequence found'
+                            }
+                        </p>
+                    `;
+
+                } else {
+
+                    // Display DBDAA result
+                    html += `
+                        <h3>DBDAA result sequences</h3>
+
+                        <p>
+                            <b>Safe Sequence:</b>
+                            ${
+                                out.safe.length
+                                    ? out.safe.map(
+                                        i => 'P' + (i + 1)
+                                    ).join(' → ')
+                                    : 'None'
+                            }
+                        </p>
+
+                        <p>
+                            <b>Primary Unsafe Sequence:</b>
+                            ${
+                                out.primary.length
+                                    ? out.primary.map(
+                                        i => 'P' + (i + 1)
+                                    ).join(', ')
+                                    : 'None'
+                            }
+                        </p>
+
+                        <p>
+                            <b>Unsafe Sequence:</b>
+                            ${
+                                out.unsafe.length
+                                    ? out.unsafe.map(
+                                        i => 'P' + (i + 1)
+                                    ).join(', ')
+                                    : 'None'
+                            }
+                        </p>
+
+                        <p>
+                            <b>Timer cycles:</b> ${out.cycles.length}
+                        </p>
+
+                        <div class="info">
+                            A process remaining in Primary Unsafe means
+                            it could not pass the current checks in the
+                            bounded demonstration; it is not automatically
+                            labelled completely Unsafe.
+                        </div>
+                    `;
+                }
+
+
+                // Display execution trace
+                html += '<h3>Execution trace</h3>';
+
+                html += out.logs.map(
+                    (x, i) => `
+                        <div class="trace">
+                            <b>${i + 1}.</b> ${x}
+                        </div>
+                    `
+                ).join('');
+
+
+                // Display cycle snapshots
+                if (out.cycles) {
+
+                    html += '<h3>Cycle snapshots</h3>';
+
+                    html += out.cycles.map(
+                        x => `
+                            <div class="trace">
+                                ${x}
+                            </div>
+                        `
+                    ).join('');
+                }
+
+                $('output').innerHTML = html;
+
+            } catch (e) {
+
+                $('output').innerHTML = `
+                    <p class="error">
+                        ${e.message}
+                    </p>
+                `;
+            }
+        }
+
+
+        // Run safety algorithm
+        function runSelectedSafe() {
+            runSelected();
+        }
+
+
+        // Clear displayed results
+        function clearOutput() {
+            $('output').innerHTML =
+                '<p>Build or load inputs, then run an algorithm.</p>';
+        }
+
+
+        // Add a new process dynamically
+        function addProcess() {
+
+            try {
+
+                if (+$('np').value >= 10) {
+                    throw Error(
+                        'Maximum is 10 processes in this demo.'
+                    );
+                }
+
+                let s = getState();
+
+                let a = nums($('newAlloc').value);
+                let mx = nums($('newMax').value);
+
+                let at = +$('at').value;
+                let bt = +$('bt').value;
+
+
+                // Validate allocation and maximum vectors
+                if (
+                    a.length !== s.d ||
+                    mx.length !== s.d ||
+                    [...a, ...mx].some(
+                        v => !Number.isInteger(v) || v < 0
+                    )
+                ) {
+                    throw Error(
+                        'Allocation and Maximum need ' +
+                        s.d + ' non-negative integers.'
+                    );
+                }
+
+
+                if (mx.some((v, j) => a[j] > v)) {
+                    throw Error(
+                        'Allocation cannot exceed Maximum.'
+                    );
+                }
+
+
+                // Validate arrival and burst time
+                if (
+                    !Number.isInteger(at) ||
+                    at < 0 ||
+                    !Number.isInteger(bt) ||
+                    bt < 1
+                ) {
+                    throw Error(
+                        'Arrival time must be ≥ 0 and burst time ≥ 1.'
+                    );
+                }
+
+
+                let aa = [
+                    ...s.A.map(r => r.join(' ')),
+                    a.join(' ')
+                ];
+
+                let mm = [
+                    ...s.M.map(r => r.join(' ')),
+                    mx.join(' ')
+                ];
+
+
+                // Update process count and input fields
+                $('np').value = s.n + 1;
+
+                $('inputs').querySelector('#alloc').value =
+                    aa.join('\n');
+
+                $('inputs').querySelector('#max').value =
+                    mm.join('\n');
+
+                $('inputs').querySelector('#ats').value =
+                    [...s.AT, at].join(' ');
+
+                $('inputs').querySelector('#bts').value =
+                    [...s.BT, bt].join(' ');
+
+
+                $('addMsg').innerHTML = `
+                    <p class="status safe">
+                        Added P${s.n + 1}.
+                        Run DBDAA again to include it in the safety check.
+                    </p>
+                `;
+
+                clearOutput();
+
+            } catch (e) {
+
+                $('addMsg').innerHTML = `
+                    <p class="error">
+                        ${e.message}
+                    </p>
+                `;
+            }
+        }
+
+
+        // Algorithm execution buttons
+        function runSafety() {
+            choose('bank');
+            runSelected();
+        }
+
+        function runDBDAA() {
+            choose('db');
+            runSelected();
+        }
+
+
+        // Initialize the application
+        buildInputs();
+
+    </script>
+
+</body>
+</html>

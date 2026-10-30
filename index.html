@@ -1,0 +1,487 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Resource Allocation Simulator - Deadlock</title>
+<style>
+:root {
+  --bg:#080d1c; --panel:#111a2e; --line:#263753; --text:#eaf1ff;
+  --muted:#a7b7d2; --cyan:#4de3f5; --green:#55e6a5; --red:#ff6b7a; --yellow:#ffd166;
+}
+* { box-sizing:border-box; }
+body {
+  margin:0; background:radial-gradient(circle at top right,#172b4c,#080d1c 55%);
+  color:var(--text); font:15px/1.5 "Segoe UI",Arial,sans-serif;
+}
+main { max-width:1200px; margin:auto; padding:28px 18px 60px; }
+.hero,.panel {
+  background:#111a2ee8; border:1px solid var(--line); border-radius:16px;
+  padding:22px; margin-bottom:18px; box-shadow:0 12px 30px #0003;
+}
+.hero { border-top:3px solid var(--cyan); }
+h1 { margin:0; color:var(--cyan); font-size:clamp(25px,4vw,38px); }
+h2 { font-size:20px; margin:0 0 14px; }
+h3 { font-size:16px; margin:18px 0 8px; color:var(--cyan); }
+p { color:var(--muted); }
+.sub { margin:8px 0 0; }
+.grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:14px; }
+.field label { display:block; color:var(--muted); font-size:13px; margin-bottom:5px; }
+input,textarea {
+  width:100%; background:#0a1223; color:var(--text); border:1px solid #354b6c;
+  border-radius:8px; padding:10px; font:inherit;
+}
+textarea { min-height:110px; resize:vertical; }
+.buttons { display:flex; gap:10px; flex-wrap:wrap; margin-top:14px; }
+button {
+  border:0; border-radius:9px; padding:10px 15px; font-weight:700; cursor:pointer;
+  background:var(--cyan); color:#07111d;
+}
+button.secondary { background:#293b59; color:var(--text); }
+button.warn { background:var(--yellow); color:#201600; }
+button:focus-visible,input:focus-visible,textarea:focus-visible {
+  outline:2px solid var(--cyan); outline-offset:2px;
+}
+table { width:100%; border-collapse:collapse; margin:8px 0 16px; font-size:13px; }
+th,td { padding:9px 10px; border:1px solid #2b3e5b; text-align:center; }
+th { background:#1a2a45; color:var(--cyan); }
+td { background:#0e1528; }
+.scroll { overflow-x:auto; }
+.status { padding:13px; border-radius:10px; margin:10px 0; font-weight:700; }
+.safe { background:#123b31; color:var(--green); }
+.unsafe { background:#401f2a; color:var(--red); }
+.info { background:#332d18; color:var(--yellow); padding:12px; border-radius:8px; }
+.metrics { display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:10px; }
+.metric { background:#0a1427; border:1px solid #293d5d; border-radius:10px; padding:13px; }
+.metric b { display:block; color:var(--cyan); font-size:22px; }
+.small { font-size:12px; color:var(--muted); }
+.error { color:var(--red); font-weight:700; }
+.trace-step {
+  border-left:3px solid var(--cyan); padding:10px 12px;
+  margin:8px 0; background:#0a1427; border-radius:0 8px 8px 0;
+}
+code { color:var(--cyan); }
+@media(max-width:600px) {
+  main{padding:14px 10px}
+  .hero,.panel{padding:15px}
+}
+</style>
+</head>
+
+<body>
+<main>
+
+<header class="hero">
+  <p class="small">OPERATING SYSTEM - INTERACTIVE WORKING MODEL</p>
+  <h1>Resource Allocation Simulator</h1>
+  <p class="sub">Deadlock avoidance using Banker’s Safety Algorithm</p>
+</header>
+
+<section class="panel">
+  <h2>1. Configure System</h2>
+
+  <div class="grid">
+    <div class="field">
+      <label for="np">Number of processes (1-8)</label>
+      <input id="np" type="number" min="1" max="8" value="5">
+    </div>
+
+    <div class="field">
+      <label for="nr">Resource types (1-5)</label>
+      <input id="nr" type="number" min="1" max="5" value="3">
+    </div>
+  </div>
+
+  <div class="buttons">
+    <button onclick="buildInputs()">Build Matrix Inputs</button>
+    <button class="secondary" onclick="loadExample()">Load Classic Safe Example</button>
+  </div>
+
+  <div id="matrixInputs"></div>
+</section>
+
+<section class="panel">
+  <h2>2. Run Safety Analysis</h2>
+  <p>Enter non-negative integers. Maximum must be greater than or equal to Allocation for each process and resource.</p>
+
+  <div class="buttons">
+    <button onclick="runSafety()">Run Banker’s Safety Algorithm</button>
+    <button class="warn" onclick="nextStep()">Show Next Safety Step</button>
+    <button class="secondary" onclick="resetResults()">Reset Results</button>
+  </div>
+
+  <div id="output">
+    <p>Build or load the matrices, then run the simulation.</p>
+  </div>
+</section>
+
+<section class="panel">
+  <h2>3. Test a Resource Request</h2>
+  <p>Enter a process number and a request vector. The request is granted only if it is within Need and Available and the resulting state remains safe.</p>
+
+  <div class="grid">
+    <div class="field">
+      <label for="requestProcess">Process number (1-based)</label>
+      <input id="requestProcess" type="number" min="1" value="1">
+    </div>
+
+    <div class="field">
+      <label for="requestVector">Request vector (space/comma separated)</label>
+      <input id="requestVector" value="1 0 2">
+    </div>
+  </div>
+
+  <div class="buttons">
+    <button onclick="testRequest()">Check Resource Request</button>
+  </div>
+
+  <div id="requestOutput"></div>
+</section>
+
+<section class="panel">
+  <h2>4. Concepts</h2>
+
+  <p>
+    <b>Need = Maximum − Allocation.</b><br>
+    The safety algorithm repeatedly finds an unfinished process whose Need
+    is less than or equal to Work, initially Available. If it assumes that
+    process finishes, it releases its Allocation. If all processes can
+    finish, the state is safe.
+  </p>
+
+  <p>
+    <b>Important:</b> An unsafe state does not automatically mean deadlock
+    has already occurred. This simulator demonstrates deadlock avoidance
+    and safety analysis.
+  </p>
+</section>
+
+</main>
+
+<script>
+let stepLog = [];
+let stepIndex = 0;
+let lastState = null;
+let lastResult = null;
+
+const $ = id => document.getElementById(id);
+
+function parseNumbers(text) {
+  return text.trim().split(/[,\s]+/).filter(Boolean).map(Number);
+}
+
+function buildInputs() {
+  const n = Number($("np").value);
+  const m = Number($("nr").value);
+
+  if (!Number.isInteger(n) || n < 1 || n > 8 ||
+      !Number.isInteger(m) || m < 1 || m > 5) {
+    $("matrixInputs").innerHTML =
+      '<p class="error">Processes must be 1-8 and resources 1-5.</p>';
+    return;
+  }
+
+  const alloc = Array.from({length:n}, () => Array(m).fill(0));
+  const max = Array.from({length:n}, () => Array(m).fill(0));
+
+  if (n === 5 && m === 3) {
+    [[0,1,0],[2,0,0],[3,0,2],[2,1,1],[0,0,2]]
+      .forEach((r,i)=>alloc[i]=r);
+
+    [[7,5,3],[3,2,2],[9,0,2],[2,2,2],[4,3,3]]
+      .forEach((r,i)=>max[i]=r);
+  }
+
+  $("matrixInputs").innerHTML = `
+    <h3>Allocation Matrix</h3>
+    <p class="small">One row per process. Separate values with spaces or commas.</p>
+    <textarea id="alloc">${alloc.map(r=>r.join(" ")).join("\n")}</textarea>
+
+    <h3>Maximum Matrix</h3>
+    <textarea id="max">${max.map(r=>r.join(" ")).join("\n")}</textarea>
+
+    <h3>Available Resources</h3>
+    <input id="avail" value="${n===5&&m===3?"3 3 2":Array(m).fill(0).join(" ")}">
+
+    <p class="small">Matrix row counts and vector lengths must match the selected process and resource counts.</p>
+  `;
+
+  resetResults();
+}
+
+function loadExample() {
+  $("np").value=5;
+  $("nr").value=3;
+  buildInputs();
+
+  $("alloc").value="0 1 0\n2 0 0\n3 0 2\n2 1 1\n0 0 2";
+  $("max").value="7 5 3\n3 2 2\n9 0 2\n2 2 2\n4 3 3";
+  $("avail").value="3 3 2";
+
+  resetResults();
+}
+
+function readRows(id,n,m) {
+  const raw=$(id).value.trim();
+
+  if(!raw)
+    throw new Error("Please fill in the "+id+" matrix.");
+
+  const rows=raw.split(/\n/)
+    .map(line=>line.trim())
+    .filter(Boolean)
+    .map(line=>parseNumbers(line));
+
+  if(rows.length!==n || rows.some(row=>row.length!==m))
+    throw new Error(id+" must have "+n+" rows and "+m+" values per row.");
+
+  if(rows.some(row=>row.some(v=>!Number.isInteger(v)||v<0)))
+    throw new Error(id+" values must be non-negative integers.");
+
+  return rows;
+}
+
+function getState() {
+  const n=Number($("np").value);
+  const m=Number($("nr").value);
+
+  if(!Number.isInteger(n)||n<1||n>8||
+     !Number.isInteger(m)||m<1||m>5)
+    throw new Error("Invalid process or resource count.");
+
+  const A=readRows("alloc",n,m);
+  const M=readRows("max",n,m);
+  const V=parseNumbers($("avail").value);
+
+  if(V.length!==m||V.some(v=>!Number.isInteger(v)||v<0))
+    throw new Error("Available must contain "+m+" non-negative integers.");
+
+  for(let i=0;i<n;i++)
+    for(let j=0;j<m;j++)
+      if(A[i][j]>M[i][j])
+        throw new Error("Allocation cannot exceed Maximum at P"+(i+1)+", resource R"+(j+1)+".");
+
+  const Need=M.map((row,i)=>row.map((v,j)=>v-A[i][j]));
+
+  return {n,m,A,M,V,Need};
+}
+
+function analyze(state) {
+  const work=[...state.V];
+  const finish=Array(state.n).fill(false);
+  const seq=[], logs=[];
+
+  while(seq.length<state.n) {
+    let found=-1;
+
+    for(let i=0;i<state.n;i++) {
+      if(!finish[i] && state.Need[i].every((v,j)=>v<=work[j])) {
+        found=i;
+        break;
+      }
+    }
+
+    if(found===-1) break;
+
+    const before=[...work];
+
+    for(let j=0;j<state.m;j++)
+      work[j]+=state.A[found][j];
+
+    finish[found]=true;
+    seq.push(found);
+
+    logs.push({
+      process:found,
+      before,
+      need:[...state.Need[found]],
+      released:[...state.A[found]],
+      after:[...work]
+    });
+  }
+
+  return {
+    safe:seq.length===state.n,
+    seq,
+    logs,
+    work,
+    finish
+  };
+}
+
+function table(matrix,labels) {
+  return `<div class="scroll"><table>
+    <thead><tr><th>Process</th>
+      ${labels.map((x,i)=>`<th>${x}</th>`).join("")}
+    </tr></thead>
+    <tbody>
+      ${matrix.map((row,i)=>`<tr><th>P${i+1}</th>
+        ${row.map(v=>`<td>${v}</td>`).join("")}
+      </tr>`).join("")}
+    </tbody>
+  </table></div>`;
+}
+
+function runSafety() {
+  try {
+    const state=getState();
+    const result=analyze(state);
+
+    lastState=state;
+    lastResult=result;
+    stepLog=result.logs;
+    stepIndex=0;
+
+    let html=`
+      <div class="status ${result.safe?"safe":"unsafe"}">
+        ${result.safe?"SAFE STATE":"UNSAFE STATE"}
+      </div>
+
+      <div class="metrics">
+        <div class="metric">
+          <span class="small">Processes</span>
+          <b>${state.n}</b>
+        </div>
+
+        <div class="metric">
+          <span class="small">Resource Types</span>
+          <b>${state.m}</b>
+        </div>
+
+        <div class="metric">
+          <span class="small">Processes Completed</span>
+          <b>${result.seq.length}/${state.n}</b>
+        </div>
+
+        <div class="metric">
+          <span class="small">Safety Steps</span>
+          <b>${result.logs.length}</b>
+        </div>
+      </div>
+
+      <h3>Need Matrix (Maximum - Allocation)</h3>
+      ${table(state.Need,Array.from({length:state.m},(_,i)=>"R"+(i+1)))}
+
+      <h3>Safety Result</h3>
+      <p><b>Available:</b> [${state.V.join(", ")}]</p>
+
+      <p><b>Safe Sequence:</b>
+        ${result.safe?result.seq.map(i=>"P"+(i+1)).join(" → "):"No complete safe sequence found"}
+      </p>
+
+      <h3>Safety Trace</h3>
+      <div id="trace">
+        <p class="small">Press “Show Next Safety Step” to reveal the execution steps.</p>
+      </div>
+    `;
+
+    if(!result.safe)
+      html+='<p class="info">At least one process could not be marked finished. This indicates an unsafe state, not proof of an existing deadlock.</p>';
+
+    $("output").innerHTML=html;
+    $("requestOutput").innerHTML="";
+
+  } catch(e) {
+    $("output").innerHTML=`<p class="error">${e.message}</p>`;
+  }
+}
+
+function nextStep() {
+  if(!lastState || !lastResult) {
+    runSafety();
+    if(!lastState||!lastResult) return;
+  }
+
+  const trace=$("trace");
+  if(!trace) return;
+
+  if(stepIndex>=stepLog.length) {
+    if(stepLog.length===0)
+      trace.innerHTML='<p class="small">No safe execution step is available.</p>';
+
+    else if(!trace.querySelector(".done"))
+      trace.innerHTML+='<p class="small done">All available safety steps shown.</p>';
+
+    return;
+  }
+
+  const s=stepLog[stepIndex++];
+
+  trace.innerHTML+=`
+    <div class="trace-step">
+      <b>Step ${stepIndex}: P${s.process+1} can finish</b><br>
+      Need [${s.need.join(", ")}] is less than or equal to Work [${s.before.join(", ")}].<br>
+      Release Allocation [${s.released.join(", ")}].<br>
+      <b>New Work:</b> [${s.after.join(", ")}]
+    </div>
+  `;
+}
+
+function testRequest() {
+  try {
+    const state=getState();
+    const process=Number($("requestProcess").value)-1;
+    const request=parseNumbers($("requestVector").value);
+
+    if(!Number.isInteger(process)||process<0||process>=state.n)
+      throw new Error("Process number must be between 1 and "+state.n+".");
+
+    if(request.length!==state.m||request.some(v=>!Number.isInteger(v)||v<0))
+      throw new Error("Request must contain "+state.m+" non-negative integers.");
+
+    if(request.some((v,j)=>v>state.Need[process][j]))
+      throw new Error("Request denied: it exceeds the process's remaining Need.");
+
+    if(request.some((v,j)=>v>state.V[j]))
+      throw new Error("Request cannot be granted now: insufficient Available resources.");
+
+    const tentative={
+      ...state,
+      A:state.A.map(r=>[...r]),
+      M:state.M.map(r=>[...r]),
+      V:state.V.map((v,j)=>v-request[j])
+    };
+
+    request.forEach((v,j)=>{
+      tentative.A[process][j]+=v;
+      tentative.Need[process][j]-=v;
+    });
+
+    const result=analyze(tentative);
+
+    $("requestOutput").innerHTML=`
+      <div class="status ${result.safe?"safe":"unsafe"}">
+        ${result.safe?"REQUEST GRANTED - SAFE STATE PRESERVED":"REQUEST DENIED - WOULD MAKE STATE UNSAFE"}
+      </div>
+
+      <p>
+        ${result.safe
+          ?"Safe sequence after tentative grant: "+result.seq.map(i=>"P"+(i+1)).join(" → ")
+          :"No complete safe sequence exists after the tentative grant. The original state is unchanged."}
+      </p>
+    `;
+
+  } catch(e) {
+    $("requestOutput").innerHTML=`<p class="error">${e.message}</p>`;
+  }
+}
+
+function resetResults() {
+  stepLog=[];
+  stepIndex=0;
+  lastState=null;
+  lastResult=null;
+
+  if($("output"))
+    $("output").innerHTML="<p>Build or load the matrices, then run the simulation.</p>";
+
+  if($("requestOutput"))
+    $("requestOutput").innerHTML="";
+}
+
+buildInputs();
+</script>
+
+</body>
+</html>
